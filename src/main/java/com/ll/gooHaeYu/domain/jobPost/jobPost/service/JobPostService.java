@@ -8,6 +8,7 @@ import com.ll.gooHaeYu.domain.jobPost.jobPost.entity.JobPost;
 import com.ll.gooHaeYu.domain.jobPost.jobPost.entity.JobPostDetail;
 import com.ll.gooHaeYu.domain.jobPost.jobPost.repository.JobPostDetailRepository;
 import com.ll.gooHaeYu.domain.jobPost.jobPost.repository.JobPostRepository;
+import com.ll.gooHaeYu.domain.jobPost.jobPost.repository.JobPostSpecifications;
 import com.ll.gooHaeYu.domain.member.member.entity.Member;
 import com.ll.gooHaeYu.domain.member.member.entity.type.Role;
 import com.ll.gooHaeYu.domain.member.member.repository.MemberRepository;
@@ -15,6 +16,7 @@ import com.ll.gooHaeYu.domain.member.member.service.MemberService;
 import com.ll.gooHaeYu.global.exception.CustomException;
 import com.ll.gooHaeYu.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class JobPostService {
 
     @Transactional
     public Long writePost(String username, JobPostForm.Register form) {
+
         JobPost newPost = JobPost.builder()
                 .member(memberService.getMember(username))
                 .title(form.getTitle())
@@ -51,7 +54,7 @@ public class JobPostService {
 
     public JobPostDetailDto findById(Long id) {
         JobPostDetail postDetail = findByJobPostAndNameAndValidate(id);
-        return JobPostDetailDto.fromEntity(postDetail.getJobPost(),postDetail);
+        return JobPostDetailDto.fromEntity(postDetail.getJobPost(), postDetail);
     }
 
     public List<JobPostDto> findAll() {
@@ -107,16 +110,16 @@ public class JobPostService {
 
     public JobPostDetail findByJobPostAndNameAndValidate(Long postId) {
         JobPost post = findByIdAndValidate(postId);
-        return jobPostdetailRepository.findByJobPostAndAuthor(post,post.getMember().getUsername())
+        return jobPostdetailRepository.findByJobPostAndAuthor(post, post.getMember().getUsername())
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_EXIST));
     }
 
     @Transactional
-    public void Interest(String username, Long postId){
+    public void Interest(String username, Long postId) {
         JobPostDetail postDetail = findByJobPostAndNameAndValidate(postId);
         Member member = memberService.getMember(username);
 
-        if (hasInterest(postDetail,member)) throw new CustomException(ErrorCode.NOT_ABLE);
+        if (hasInterest(postDetail, member)) throw new CustomException(ErrorCode.NOT_ABLE);
 
         postDetail.getInterests().add(Interest.builder()
                 .jobPostDetail(postDetail)
@@ -127,11 +130,11 @@ public class JobPostService {
     }
 
     @Transactional
-    public void disinterest(String username, Long postId){
+    public void disinterest(String username, Long postId) {
         JobPostDetail postDetail = findByJobPostAndNameAndValidate(postId);
         Member member = memberService.getMember(username);
 
-        if (!hasInterest(postDetail,member)) throw new CustomException(ErrorCode.NOT_ABLE);
+        if (!hasInterest(postDetail, member)) throw new CustomException(ErrorCode.NOT_ABLE);
 
         postDetail.getInterests().removeIf(interest -> interest.getMember().equals(member));
         postDetail.getJobPost().decreaseInterestCount();
@@ -155,4 +158,41 @@ public class JobPostService {
                 .map(JobPostDto::fromEntity)
                 .collect(Collectors.toList());
     }
+
+
+    public List<JobPostDto> searchJobPostsByTitleAndBody(String titleAndBody, String titleOnly, String bodyOnly) {
+        Specification<JobPost> spec = Specification.where(null);
+
+        spec = applyTitleAndBodySearch(spec, titleAndBody);
+        spec = applyTitleOnlySearch(spec, titleOnly);
+        spec = applyBodyOnlySearch(spec, bodyOnly);
+
+        return jobPostRepository.findAll(spec)
+                .stream()
+                .map(JobPostDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    private Specification<JobPost> applyTitleAndBodySearch(Specification<JobPost> spec, String titleAndBody) {
+        if (titleAndBody != null) {
+            return spec.and(JobPostSpecifications.titleContains(titleAndBody))
+                    .or(JobPostSpecifications.bodyContains(titleAndBody));
+        }
+        return spec;
+    }
+
+    private Specification<JobPost> applyTitleOnlySearch(Specification<JobPost> spec, String titleOnly) {
+        if (titleOnly != null) {
+            return spec.and(JobPostSpecifications.titleContains(titleOnly));
+        }
+        return spec;
+    }
+
+    private Specification<JobPost> applyBodyOnlySearch(Specification<JobPost> spec, String bodyOnly) {
+        if (bodyOnly != null) {
+            return spec.and(JobPostSpecifications.bodyContains(bodyOnly));
+        }
+        return spec;
+    }
+
 }
