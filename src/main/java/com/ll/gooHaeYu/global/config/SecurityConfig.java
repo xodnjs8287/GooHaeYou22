@@ -1,6 +1,7 @@
 package com.ll.gooHaeYu.global.config;
 
 import com.ll.gooHaeYu.global.security.CustomUserDetailsService;
+//import com.ll.gooHaeYu.global.security.JwtFilter;
 import com.ll.gooHaeYu.global.security.JwtFilter;
 import com.ll.gooHaeYu.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public class SecurityConfig {
                     requests
                             .requestMatchers("/api/member/login", "/api/member/join").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/job-posts/{id:\\d+}", "/api/job-posts",
+                                    "/api/job-posts/search",
                                     "/api/post-comment/{postId}").permitAll()
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                             .anyRequest()
